@@ -15,6 +15,8 @@
 #include "task_acceleration.h"
 #include "task_gatt.h"
 #include "task_led.h"
+#include "ruuvi_interface_lis2dh12.h"
+#include "lis2dh12_reg.h"
 
 #include <stddef.h>
 #include <stdio.h>
@@ -41,30 +43,42 @@ static void task_acceleration_timer_cb(void* p_context)
 static void task_acceleration_fifo_full_task(void *p_event_data, uint16_t event_size)
 {
   ruuvi_driver_status_t err_code = RUUVI_DRIVER_SUCCESS;
-  ruuvi_interface_acceleration_data_t data[32];
-  size_t data_len = sizeof(data);
-  err_code |= ruuvi_interface_lis2dh12_fifo_read(&data_len, data);
+  //ruuvi_interface_acceleration_data_t data[10];
+  
+  //axis3bit16_t data[10]; //Changed watermark level in ruuvi.drivers.c\interfaces\acceleration\ruuvi_interface_lis2dh12.c
+  //size_t data_len = sizeof(data);
+  //err_code |= ruuvi_interface_lis2dh12_fifo_read(&data_len, data);
+  
+  uint8_t elements = 0;
+  err_code |= cowbhave_fifo_data_level_get(&elements);
   char msg[APPLICATION_LOG_BUFFER_SIZE] = { 0 };
-  snprintf(msg, sizeof(msg), "%lu: Read %u data points\r\n", (uint32_t)ruuvi_platform_rtc_millis(), data_len);
+  //snprintf(msg, sizeof(msg), "%lu: Read %u data points\r\n", (uint32_t)ruuvi_platform_rtc_millis(), data_len);
+  snprintf(msg, sizeof(msg), "FIFO level at %u %\r\n", elements);
   ruuvi_platform_log(RUUVI_INTERFACE_LOG_INFO, msg);
-  for(int ii = 0; ii < data_len; ii++)
+  
+  axis3bit16_t acc;
+  //Read elements+1 when watermark is reached
+  for(int ii = 0; ii < (elements+1); ii++)
   {
-    memset(msg, 0, sizeof(msg));
-    /*snprintf(msg, sizeof(msg), "T: %lu; X: %.3f; Y: %.3f; Z: %.3f;\r\n", (uint32_t)(data[ii].timestamp_ms&0xFFFFFFFF), data[ii].x_g, data[ii].y_g, data[ii].z_g);
-    ruuvi_platform_log(RUUVI_INTERFACE_LOG_DEBUG, msg);
-    ruuvi_platform_delay_ms(1);*/
-    snprintf(msg, 21,"%+4.2f;%+4.2f;%+4.2f", data[ii].x_g, data[ii].y_g, data[ii].z_g );
-    ruuvi_interface_communication_message_t gatt_msg = { 0 };
-    memcpy(gatt_msg.data, msg, 20);
-    gatt_msg.data_length = 20;
+    //memset(msg, 0, sizeof(msg));
+    //snprintf(msg, sizeof(msg), "T: %lu; X: %.3f; Y: %.3f; Z: %.3f;\r\n", (uint32_t)(data[ii].timestamp_ms&0xFFFFFFFF), data[ii].x_g, data[ii].y_g, data[ii].z_g);
+    err_code |= cowbhave_acceleration_raw_get(acc.u8bit);
+    //snprintf(msg, sizeof(msg),"%i;%i;%i\r\n", data[ii].i16bit[0], data[ii].i16bit[1], data[ii].i16bit[2]);
+    snprintf(msg, sizeof(msg),"%i;%i;%i\r\n", acc.i16bit[0], acc.i16bit[1], acc.i16bit[2]);
+    ruuvi_platform_log(RUUVI_INTERFACE_LOG_INFO, msg);
+    ruuvi_platform_delay_ms(1);
+    //ruuvi_interface_communication_message_t gatt_msg = { 0 };
+    //memcpy(gatt_msg.data, msg, 20);
+    //gatt_msg.data_length = 20;
     // Loop here until data is sent
     // TODO: Handle case where NUS disconnection happens here
-    while(RUUVI_DRIVER_SUCCESS != task_gatt_send(&gatt_msg))
-    {
-      ruuvi_platform_yield();
-    };
+    //while(RUUVI_DRIVER_SUCCESS != task_gatt_send(&gatt_msg))
+    //{
+    //  ruuvi_platform_yield();
+    //};
   }
 
+  if(RUUVI_DRIVER_SUCCESS == err_code) { ruuvi_interface_watchdog_feed(); }
   RUUVI_DRIVER_ERROR_CHECK(err_code, RUUVI_DRIVER_SUCCESS);
 }
 
@@ -116,16 +130,16 @@ ruuvi_driver_status_t task_acceleration_init(void)
     {
       err_code |= task_acceleration_configure();
 
-      float ths = APPLICATION_ACCELEROMETER_ACTIVITY_THRESHOLD;
-      err_code |= ruuvi_interface_lis2dh12_activity_interrupt_use(true, &ths);
+      //float ths = APPLICATION_ACCELEROMETER_ACTIVITY_THRESHOLD;
+      //err_code |= ruuvi_interface_lis2dh12_activity_interrupt_use(true, &ths);
 
       // Let pins settle
       ruuvi_platform_delay_ms(10);
       // Setup FIFO and activity interrupts
       err_code |= ruuvi_platform_gpio_interrupt_enable(RUUVI_BOARD_INT_ACC1_PIN, RUUVI_INTERFACE_GPIO_SLOPE_LOTOHI, RUUVI_INTERFACE_GPIO_MODE_INPUT_NOPULL, on_fifo);
-      err_code |= ruuvi_platform_gpio_interrupt_enable(RUUVI_BOARD_INT_ACC2_PIN, RUUVI_INTERFACE_GPIO_SLOPE_LOTOHI, RUUVI_INTERFACE_GPIO_MODE_INPUT_NOPULL, on_movement);
+      //err_code |= ruuvi_platform_gpio_interrupt_enable(RUUVI_BOARD_INT_ACC2_PIN, RUUVI_INTERFACE_GPIO_SLOPE_LOTOHI, RUUVI_INTERFACE_GPIO_MODE_INPUT_NOPULL, on_movement);
       char msg[APPLICATION_LOG_BUFFER_SIZE] = { 0 };
-      snprintf(msg, sizeof(msg), "Configured interrupt threshold at %.3f mg\r\n", ths);
+      //snprintf(msg, sizeof(msg), "Configured interrupt threshold at %.3f mg\r\n", ths);
       ruuvi_platform_log(RUUVI_INTERFACE_LOG_INFO, msg);
 
       return err_code;

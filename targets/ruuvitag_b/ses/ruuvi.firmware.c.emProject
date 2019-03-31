@@ -1,5 +1,5 @@
 <!DOCTYPE CrossStudio_Project_File>
-<solution Name="ruuvi.firmware.c" target="8" version="2">
+<solution Name="cowbhave.scan_response.c" target="8" version="2">
   <project Name="ruuvi.firmware.c">
     <configuration
       Name="Common"

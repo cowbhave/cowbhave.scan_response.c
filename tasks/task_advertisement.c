@@ -51,8 +51,11 @@ ruuvi_driver_status_t task_advertisement_init(void)
   int8_t target_power = APPLICATION_ADVERTISING_POWER;
   err_code |= ruuvi_interface_communication_ble4_advertising_tx_power_set(&target_power);
   err_code |= ruuvi_interface_communication_ble4_advertising_manufacturer_id_set(RUUVI_BOARD_BLE_MANUFACTURER_ID);
-  err_code |= ruuvi_platform_timer_create(&advertisement_timer, RUUVI_INTERFACE_TIMER_MODE_REPEATED, task_advertisement_timer_cb);
-  err_code |= ruuvi_platform_timer_start(advertisement_timer, APPLICATION_ADVERTISING_INTERVAL);
+  err_code |= ruuvi_interface_communication_ble4_advertising_start();
+  //Do not start ruuvi timers at all -> would be better to create a new file with CowBhave tasks and take out the rest
+  //advertising data will be update in when acc fifo is full
+  //err_code |= ruuvi_platform_timer_create(&advertisement_timer, RUUVI_INTERFACE_TIMER_MODE_REPEATED, task_advertisement_timer_cb);
+  //err_code |= ruuvi_platform_timer_start(advertisement_timer, APPLICATION_ADVERTISING_INTERVAL);
   return err_code;
 }
 

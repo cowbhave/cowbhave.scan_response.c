@@ -102,6 +102,7 @@ int main(void)
   // Allow NOT FOUND in case we're running on basic model
   // TODO: Requires task_button to init GPIO
   status = task_acceleration_init();
+  task_acceleration_fifo_use(true);
   RUUVI_DRIVER_ERROR_CHECK(status, RUUVI_DRIVER_ERROR_NOT_FOUND);
 
   // Initialize BLE
