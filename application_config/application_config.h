@@ -103,7 +103,7 @@
  */
 // Avoid "even" values such as 100 or 1000 to eventually drift apart from the devices transmitting at same interval
 #ifndef APPLICATION_ADVERTISING_CONFIGURED
-  #define APPLICATION_ADVERTISING_INTERVAL              1010
+  #define APPLICATION_ADVERTISING_INTERVAL              450
   #define APPLICATION_CONNECTION_ADVERTISEMENT_INTERVAL APPLICATION_ADVERTISING_INTERVAL
   #define APPLICATION_ADVERTISING_POWER                 RUUVI_BOARD_TX_POWER_MAX
   #define APPLICATION_DATA_FORMAT                       5

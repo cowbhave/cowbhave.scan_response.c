@@ -17,6 +17,8 @@
 #include "task_led.h"
 #include "ruuvi_interface_lis2dh12.h"
 #include "lis2dh12_reg.h"
+#include "ruuvi_interface_communication_ble4_gatt.h"
+
 
 #include <stddef.h>
 #include <stdio.h>
@@ -26,6 +28,7 @@
 RUUVI_PLATFORM_TIMER_ID_DEF(acceleration_timer);
 static ruuvi_driver_sensor_t acceleration_sensor = {0};
 static uint8_t m_nbr_movements;
+static uint16_t msg_count = 0; 
 
 
 //handler for scheduled accelerometer event
@@ -48,7 +51,6 @@ static void task_acceleration_fifo_full_task(void *p_event_data, uint16_t event_
   //axis3bit16_t data[10]; //Changed watermark level in ruuvi.drivers.c\interfaces\acceleration\ruuvi_interface_lis2dh12.c
   //size_t data_len = sizeof(data);
   //err_code |= ruuvi_interface_lis2dh12_fifo_read(&data_len, data);
-  
   uint8_t elements = 0;
   err_code |= cowbhave_fifo_data_level_get(&elements);
   char msg[APPLICATION_LOG_BUFFER_SIZE] = { 0 };
@@ -57,29 +59,59 @@ static void task_acceleration_fifo_full_task(void *p_event_data, uint16_t event_
   ruuvi_platform_log(RUUVI_INTERFACE_LOG_INFO, msg);
   
   axis3bit16_t acc;
+  uint8_t lsbx;
+  uint8_t lsby;
+  uint8_t lsbz;
+  uint8_t ii5 = 0;
+  //Arrays for advertising and scan response data 
+  uint8_t new_data[24];
+  uint8_t new_rsp_data[24];
+  memset(new_data, 0, 24);
+  memset(new_rsp_data, 0, 24);
+  
   //Read elements+1 when watermark is reached
-  for(int ii = 0; ii < (elements+1); ii++)
-  {
-    //memset(msg, 0, sizeof(msg));
-    //snprintf(msg, sizeof(msg), "T: %lu; X: %.3f; Y: %.3f; Z: %.3f;\r\n", (uint32_t)(data[ii].timestamp_ms&0xFFFFFFFF), data[ii].x_g, data[ii].y_g, data[ii].z_g);
-    err_code |= cowbhave_acceleration_raw_get(acc.u8bit);
-    //snprintf(msg, sizeof(msg),"%i;%i;%i\r\n", data[ii].i16bit[0], data[ii].i16bit[1], data[ii].i16bit[2]);
-    snprintf(msg, sizeof(msg),"%i;%i;%i\r\n", acc.i16bit[0], acc.i16bit[1], acc.i16bit[2]);
-    ruuvi_platform_log(RUUVI_INTERFACE_LOG_INFO, msg);
-    ruuvi_platform_delay_ms(1);
-    //ruuvi_interface_communication_message_t gatt_msg = { 0 };
-    //memcpy(gatt_msg.data, msg, 20);
-    //gatt_msg.data_length = 20;
-    // Loop here until data is sent
-    // TODO: Handle case where NUS disconnection happens here
-    //while(RUUVI_DRIVER_SUCCESS != task_gatt_send(&gatt_msg))
-    //{
-    //  ruuvi_platform_yield();
-    //};
+  for(int ii = 0; ii < 10; ii++){
+  err_code |= cowbhave_acceleration_raw_get(acc.u8bit);
+  //First 5 samples to advertising data and last 5 to scan response data
+  if (ii < 5){
+    new_data[ii*4 + 0] = acc.u8bit[0];
+    new_data[ii*4 + 1] = acc.u8bit[2];
+    new_data[ii*4 + 2] = acc.u8bit[4];
+    lsbx = acc.u8bit[1];
+    lsby = acc.u8bit[3] >> 2;
+    lsbz = acc.u8bit[5] >> 4;
+    new_data[ii*4 + 3] = lsbx | lsby | lsbz;
+  } 
+  else {
+    ii5 = (ii-5);
+    new_rsp_data[ii5*4 + 0] = acc.u8bit[0];
+    new_rsp_data[ii5*4 + 1] = acc.u8bit[2];
+    new_rsp_data[ii5*4 + 2] = acc.u8bit[4];
+    lsbx = acc.u8bit[1];
+    lsby = acc.u8bit[3] >> 2;
+    lsbz = acc.u8bit[5] >> 4;
+    new_rsp_data[ii5*4 + 3] = lsbx | lsby | lsbz;
   }
 
+    snprintf(msg, sizeof(msg),"%i: %i;%i;%i\r\n", ii, acc.i16bit[0], acc.i16bit[1], acc.i16bit[2]);
+    ruuvi_platform_log(RUUVI_INTERFACE_LOG_INFO, msg);
+  }
+  
+  //Differentiate between scan response and advertising 
+  new_data[20] = 1; 
+  new_rsp_data[20] = 2;
+
+  //message counter
+  new_data[21] = msg_count >> 8;
+  new_data[22] = msg_count & 0xff;
+  msg_count++;
+
+  //TODO check for errors on data_set, err_code not the same as for acceleration get 
+  //err_code |= 
+  cowbhave_ble4_advertising_data_set(&new_data, &new_rsp_data, sizeof(new_data));  
   if(RUUVI_DRIVER_SUCCESS == err_code) { ruuvi_interface_watchdog_feed(); }
   RUUVI_DRIVER_ERROR_CHECK(err_code, RUUVI_DRIVER_SUCCESS);
+  ruuvi_platform_yield();
 }
 
 static void on_fifo (ruuvi_interface_gpio_evt_t event)

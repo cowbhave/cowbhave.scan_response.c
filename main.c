@@ -87,7 +87,7 @@ int main(void)
   RUUVI_DRIVER_ERROR_CHECK(status, RUUVI_DRIVER_SUCCESS);
 
   // Initialize ADC
-  status |= task_adc_init();
+  //status |= task_adc_init();
   RUUVI_DRIVER_ERROR_CHECK(status, RUUVI_DRIVER_SUCCESS);
 
   // Initialize button with on_button task
@@ -96,7 +96,7 @@ int main(void)
 
   // Initialize environmental- nRF52 will return ERROR NOT SUPPORTED on RuuviTag basic
   // if DSP was configured, log warning
-  status |= task_environmental_init();
+  //status |= task_environmental_init();
   RUUVI_DRIVER_ERROR_CHECK(status, RUUVI_DRIVER_ERROR_NOT_SUPPORTED);
 
   // Allow NOT FOUND in case we're running on basic model
