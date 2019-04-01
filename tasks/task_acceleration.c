@@ -28,7 +28,7 @@
 RUUVI_PLATFORM_TIMER_ID_DEF(acceleration_timer);
 static ruuvi_driver_sensor_t acceleration_sensor = {0};
 static uint8_t m_nbr_movements;
-static uint16_t msg_count = 0; 
+uint16_t msg_count = 0; 
 
 
 //handler for scheduled accelerometer event
@@ -45,9 +45,10 @@ static void task_acceleration_timer_cb(void* p_context)
 
 static void task_acceleration_fifo_full_task(void *p_event_data, uint16_t event_size)
 {
+  axis3bit16_t acc;
   ruuvi_driver_status_t err_code = RUUVI_DRIVER_SUCCESS;
-  //ruuvi_interface_acceleration_data_t data[10];
   
+  //ruuvi_interface_acceleration_data_t data[10];
   //axis3bit16_t data[10]; //Changed watermark level in ruuvi.drivers.c\interfaces\acceleration\ruuvi_interface_lis2dh12.c
   //size_t data_len = sizeof(data);
   //err_code |= ruuvi_interface_lis2dh12_fifo_read(&data_len, data);
@@ -58,7 +59,12 @@ static void task_acceleration_fifo_full_task(void *p_event_data, uint16_t event_
   snprintf(msg, sizeof(msg), "FIFO level at %u %\r\n", elements);
   ruuvi_platform_log(RUUVI_INTERFACE_LOG_INFO, msg);
   
-  axis3bit16_t acc;
+  //Clear "extra samples" from buffer, this should only occur during startup if sample rate > 10
+  if (elements > 10){
+    for (int k = 0; k < (elements-10); k++) 
+      err_code |= cowbhave_acceleration_raw_get(acc.u8bit);
+  }
+
   uint8_t lsbx;
   uint8_t lsby;
   uint8_t lsbz;
@@ -95,16 +101,18 @@ static void task_acceleration_fifo_full_task(void *p_event_data, uint16_t event_
     
     //snprintf(msg, sizeof(msg),"%i: %u;%u;%u,%u;%u;%u\r\n", ii, acc.u8bit[0], acc.u8bit[1], acc.u8bit[2], acc.u8bit[3], acc.u8bit[4], acc.u8bit[5]);
     //ruuvi_platform_log(RUUVI_INTERFACE_LOG_INFO, msg);
-    snprintf(msg, sizeof(msg),"%i: %i;%i;%i\r\n", ii, acc.i16bit[0], acc.i16bit[1], acc.i16bit[2]);
+    snprintf(msg, sizeof(msg),"%i %i: %i;%i;%i\r\n", msg_count, ii, acc.i16bit[0], acc.i16bit[1], acc.i16bit[2]);
     ruuvi_platform_log(RUUVI_INTERFACE_LOG_INFO, msg);
   }
   
   //Differentiate between scan response and advertising 
-  new_data[20] = 1; 
-  new_rsp_data[20] = 2;
+  //new_data[20] = 1; 
+  //new_rsp_data[20] = 2;
+  new_data[20] = elements; //accelerometer buffer level when task was called
+  new_rsp_data[20] = elements; 
 
   //message counter
-  new_data[21] = msg_count >> 8;
+  new_data[21] = (msg_count >> 8);
   new_data[22] = msg_count & 0xff;
   new_rsp_data[21] = msg_count >> 8;
   new_rsp_data[22] = msg_count & 0xff;
