@@ -74,25 +74,27 @@ static void task_acceleration_fifo_full_task(void *p_event_data, uint16_t event_
   err_code |= cowbhave_acceleration_raw_get(acc.u8bit);
   //First 5 samples to advertising data and last 5 to scan response data
   if (ii < 5){
-    new_data[ii*4 + 0] = acc.u8bit[0];
-    new_data[ii*4 + 1] = acc.u8bit[2];
-    new_data[ii*4 + 2] = acc.u8bit[4];
-    lsbx = acc.u8bit[1];
-    lsby = acc.u8bit[3] >> 2;
-    lsbz = acc.u8bit[5] >> 4;
+    new_data[ii*4 + 0] = acc.u8bit[1];
+    new_data[ii*4 + 1] = acc.u8bit[3];
+    new_data[ii*4 + 2] = acc.u8bit[5];
+    lsbx = acc.u8bit[0];
+    lsby = acc.u8bit[2] >> 2;
+    lsbz = acc.u8bit[4] >> 4;
     new_data[ii*4 + 3] = lsbx | lsby | lsbz;
   } 
   else {
     ii5 = (ii-5);
-    new_rsp_data[ii5*4 + 0] = acc.u8bit[0];
-    new_rsp_data[ii5*4 + 1] = acc.u8bit[2];
-    new_rsp_data[ii5*4 + 2] = acc.u8bit[4];
-    lsbx = acc.u8bit[1];
-    lsby = acc.u8bit[3] >> 2;
-    lsbz = acc.u8bit[5] >> 4;
+    new_rsp_data[ii5*4 + 0] = acc.u8bit[1];
+    new_rsp_data[ii5*4 + 1] = acc.u8bit[3];
+    new_rsp_data[ii5*4 + 2] = acc.u8bit[5];
+    lsbx = acc.u8bit[0];
+    lsby = acc.u8bit[2] >> 2;
+    lsbz = acc.u8bit[4] >> 4;
     new_rsp_data[ii5*4 + 3] = lsbx | lsby | lsbz;
   }
-
+    
+    //snprintf(msg, sizeof(msg),"%i: %u;%u;%u,%u;%u;%u\r\n", ii, acc.u8bit[0], acc.u8bit[1], acc.u8bit[2], acc.u8bit[3], acc.u8bit[4], acc.u8bit[5]);
+    //ruuvi_platform_log(RUUVI_INTERFACE_LOG_INFO, msg);
     snprintf(msg, sizeof(msg),"%i: %i;%i;%i\r\n", ii, acc.i16bit[0], acc.i16bit[1], acc.i16bit[2]);
     ruuvi_platform_log(RUUVI_INTERFACE_LOG_INFO, msg);
   }
@@ -104,6 +106,8 @@ static void task_acceleration_fifo_full_task(void *p_event_data, uint16_t event_
   //message counter
   new_data[21] = msg_count >> 8;
   new_data[22] = msg_count & 0xff;
+  new_rsp_data[21] = msg_count >> 8;
+  new_rsp_data[22] = msg_count & 0xff;
   msg_count++;
 
   //TODO check for errors on data_set, err_code not the same as for acceleration get 

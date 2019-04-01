@@ -69,3 +69,5 @@ _build/
 
 # Keys
 *.pem
+
+.vscode/**
