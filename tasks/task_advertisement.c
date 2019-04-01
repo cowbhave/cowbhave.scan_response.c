@@ -8,8 +8,6 @@
 #include "application_config.h"
 #include "ruuvi_boards.h"
 #include "ruuvi_driver_error.h"
-//#include "ruuvi_endpoint_3.h"
-//#include "ruuvi_endpoint_5.h"
 #include "ruuvi_interface_acceleration.h"
 #include "ruuvi_interface_adc.h"
 #include "ruuvi_interface_communication_ble4_advertising.h"

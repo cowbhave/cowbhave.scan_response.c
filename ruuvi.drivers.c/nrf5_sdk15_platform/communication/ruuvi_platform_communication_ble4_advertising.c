@@ -31,17 +31,19 @@ typedef struct {
 }ruuvi_platform_ble4_advertisement_state_t;
 
 // Buffer for advertised data - TODO: Use actual ringbuffer
-static uint8_t  m_advertisement0[BLE_GAP_ADV_SET_DATA_SIZE_MAX];
-static uint16_t m_adv0_len;
+//static uint8_t  m_advertisement0[BLE_GAP_ADV_SET_DATA_SIZE_MAX];
+//static uint16_t m_adv0_len;
 
-static uint8_t  m_advertisement1[BLE_GAP_ADV_SET_DATA_SIZE_MAX];
-static uint16_t m_adv1_len;
+//static uint8_t  m_advertisement1[BLE_GAP_ADV_SET_DATA_SIZE_MAX];
+//static uint16_t m_adv1_len;
 
-static uint8_t advert_array[24];
-static uint8_t scan_array[24];
-static uint16_t array_len; 
+//static uint8_t advert_array[24];
+//static uint8_t scan_array[24];
+//static uint16_t array_len; 
 
-static bool advertisement_odd = false;
+
+
+
 
 //static ble_gap_adv_data_t m_adv_data;
 
@@ -56,6 +58,8 @@ static bool                   m_advertisement_is_init = false;               /**
 static bool                   m_advertising = false;                         /**< Flag for advertising in process **/
 ruuvi_platform_ble4_advertisement_state_t m_adv_state;
 
+
+static bool advertisement_odd = false;
 //Example for two buffers from nRF5_SDK_15.2.0_9412b96\components\softdevice\s132\doc\s132_nrf52_6.1.0_migration-document.pdf
 
 static uint8_t raw_adv_data_buffer1[BLE_GAP_ADV_SET_DATA_SIZE_MAX];
@@ -75,6 +79,12 @@ static ble_gap_adv_data_t adv_data2 = {
   .adv_data.len = sizeof(raw_adv_data_buffer2),
   .scan_rsp_data.p_data = raw_scan_rsp_data_buffer2, 
   .scan_rsp_data.len = sizeof(raw_scan_rsp_data_buffer2)};
+
+//Reused when updating data
+static ble_advdata_manuf_data_t manuf_data;
+static ble_advdata_manuf_data_t  manuf_data_response;
+static ble_advdata_t advdata = {0};
+static ble_advdata_t srdata = {0};
 
 
 // Update BLE settings, takes effect immidiately
@@ -156,57 +166,45 @@ ruuvi_driver_status_t ruuvi_interface_communication_ble4_advertising_init(ruuvi_
   m_adv_params.properties.type = BLE_GAP_ADV_TYPE_NONCONNECTABLE_SCANNABLE_UNDIRECTED; //BLE_GAP_ADV_TYPE_NONCONNECTABLE_NONSCANNABLE_UNDIRECTED;
   m_adv_params.p_peer_addr     = NULL;    // Undirected advertisement.
   m_adv_params.interval        = MSEC_TO_UNITS(DEFAULT_ADV_INTERVAL_MS, UNIT_0_625_MS);
+  //Advertise only on certain channels -> limiting channels leads to fewer samples received on RPi
+  //m_adv_params.channel_mask[4] = 0xc0; //Only 37
+  //m_adv_params.channel_mask[4] = 0x80; //Not 39
+  //m_adv_params.channel_mask[4] = 0xa0; //Only 38 
 
-  m_advertisement_is_init = true;
-  m_adv_state.advertisement_interval_ms = DEFAULT_ADV_INTERVAL_MS;
-  m_adv_state.channel = channel;
-  channel->init    = ruuvi_interface_communication_ble4_advertising_init;
-  channel->uninit  = ruuvi_interface_communication_ble4_advertising_uninit;
-  channel->send    = ruuvi_interface_communication_ble4_advertising_send;
-  channel->read    = ruuvi_interface_communication_ble4_advertising_receive;
-  channel->on_evt  = NULL;
-  
-    ble_advertising_init_t init;
-    memset(&init, 0, sizeof(init));
+    m_advertisement_is_init = true;
+    m_adv_state.advertisement_interval_ms = DEFAULT_ADV_INTERVAL_MS;
+    m_adv_state.channel = channel;
+    channel->init    = ruuvi_interface_communication_ble4_advertising_init;
+    channel->uninit  = ruuvi_interface_communication_ble4_advertising_uninit;
+    channel->send    = ruuvi_interface_communication_ble4_advertising_send;
+    channel->read    = ruuvi_interface_communication_ble4_advertising_receive;
+    channel->on_evt  = NULL;
+     
 
-  //Set manufacturing data
-    ble_advdata_manuf_data_t                  manuf_data; //Variable to hold manufacturer specific data
+   //Set manufacturing data
     memset(&manuf_data, 0, sizeof(manuf_data));
     uint8_t data[24]                          = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23};
-    manuf_data.company_identifier             =  0x0059; //Nordics company ID
+    manuf_data.company_identifier             =  COWBHAVE_MANUFACTURER_ID;
     manuf_data.data.p_data                    = data;
     manuf_data.data.size                      = sizeof(data);
-    init.advdata.p_manuf_specific_data = &manuf_data;
-
-  //Build advertising data struct to pass into @ble_advertising_init
-
-    init.advdata.name_type               = BLE_ADVDATA_NO_NAME;
-    init.advdata.short_name_len = 0; // Advertise only first 6 letters of name
-    init.advdata.include_appearance      = false;
-    //init.advdata.flags                   = BLE_GAP_ADV_FLAG_BR_EDR_NOT_SUPPORTED;
-    init.advdata.uuids_complete.uuid_cnt = 0; //sizeof(m_adv_uuids) / sizeof(m_adv_uuids[0]);
-    //init.advdata.uuids_complete.p_uuids  = m_adv_uuids;
-    //int8_t tx_power                   = 4;// Set Power Level
-    //init.advdata.p_tx_power_level = &tx_power;
-
-    // Prepare the scan response manufacturer specific data packet
-    ble_advdata_manuf_data_t  manuf_data_response;
+    advdata.p_manuf_specific_data = &manuf_data;
+    advdata.name_type               = BLE_ADVDATA_NO_NAME;
+    advdata.short_name_len = 0; // Advertise only first 6 letters of name
+    advdata.include_appearance      = false;
+    advdata.uuids_complete.uuid_cnt = 0; //sizeof(m_adv_uuids) / sizeof(m_adv_uuids[0]);
+ 
+    // Prepare the scan response manufacturer specific data packet   
     uint8_t                     data_response[24] = {0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23};
-    manuf_data_response.company_identifier  = 0x0059;
+    manuf_data_response.company_identifier  = COWBHAVE_MANUFACTURER_ID;
     manuf_data_response.data.p_data         = data_response;
     manuf_data_response.data.size           = sizeof(data_response);
-    init.srdata.name_type = BLE_ADVDATA_NO_NAME;
-    init.srdata.short_name_len = 0;
-    init.srdata.p_manuf_specific_data = &manuf_data_response;
-
-    //memset(&m_advertisement0, 0, sizeof(m_advertisement0));
-    //memset(&m_advertisement1, 0, sizeof(m_advertisement1));
-    //m_adv0_len = 31;
-    //m_adv1_len = 31;
+    srdata.name_type = BLE_ADVDATA_NO_NAME;
+    srdata.short_name_len = 0;
+    srdata.p_manuf_specific_data = &manuf_data_response;
 
     ret_code_t err_code2;
-    err_code2 |= ble_advdata_encode(&init.advdata, &adv_data1.adv_data.p_data[0], &adv_data1.adv_data.len);
-    err_code2 |= ble_advdata_encode(&init.srdata,  &adv_data1.scan_rsp_data.p_data[0], &adv_data1.scan_rsp_data.len);
+    err_code2 |= ble_advdata_encode(&advdata, &adv_data1.adv_data.p_data[0], &adv_data1.adv_data.len);
+    err_code2 |= ble_advdata_encode(&srdata,  &adv_data1.scan_rsp_data.p_data[0], &adv_data1.scan_rsp_data.len);
     
     return ruuvi_platform_to_ruuvi_error(&err_code);
 }
@@ -368,32 +366,18 @@ ruuvi_driver_status_t cowbhave_ble4_advertising_data_set(const uint8_t* new_adv_
   if(NULL == new_adv_data)     { return RUUVI_DRIVER_ERROR_NULL; }
   if(24 < data_length) { return RUUVI_DRIVER_ERROR_INVALID_LENGTH; }
 
-  // Build specification for data into ble_advdata_t advdata
-  ble_advdata_t advdata = {0};
-  
-  // Build manufacturer specific data
-  ble_advdata_manuf_data_t manuf_specific_data;
   ret_code_t err_code = NRF_SUCCESS;
   // Preserve const of data passed to us.
   uint8_t manufacturer_data[24];
   memcpy(manufacturer_data, new_adv_data, data_length);
-  manuf_specific_data.data.p_data = manufacturer_data;
-  manuf_specific_data.data.size   = data_length;
-  manuf_specific_data.company_identifier =  0x0059;
-  advdata.p_manuf_specific_data = &manuf_specific_data;
-  advdata.name_type               = BLE_ADVDATA_NO_NAME;
-  advdata.short_name_len = 0; 
-
-  //Build scan response data
-  ble_advdata_t srdata = {0};
-  ble_advdata_manuf_data_t  manuf_data_response;
+  manuf_data.data.p_data = manufacturer_data;
+  manuf_data.data.size   = data_length;
+  advdata.p_manuf_specific_data = &manuf_data;
+  
   uint8_t data_response[24];
   memcpy(data_response, new_rsp_data, data_length); //Use same data for testing
-  manuf_data_response.company_identifier  = 0x0059;
   manuf_data_response.data.p_data         = data_response;
   manuf_data_response.data.size           = sizeof(data_response);
-  srdata.name_type = BLE_ADVDATA_NO_NAME;
-  srdata.short_name_len = 0;
   srdata.p_manuf_specific_data = &manuf_data_response;
  
   if (advertisement_odd)

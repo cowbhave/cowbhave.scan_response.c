@@ -9,7 +9,9 @@
 #define APPLICATION_CONFIG_H
 #include "application_modes.h" // Includes different modes, such as long-life with low sampling rate and tx rate.
 
-#define APPLICATION_FW_VERSION "RuuviFW 3.16.0"
+#define APPLICATION_FW_VERSION "CowBhave 0.0.1"
+
+#define COWBHAVE_MANUFACTURER_ID 0x0059; //Use Nordics company ID during development not to interfere with other ruuvi boards
 
 // Pick a power of 2 for nRF5 backend. 128 is recommended.
 #define APPLICATION_LOG_BUFFER_SIZE              256
