@@ -1,6 +1,6 @@
 <!DOCTYPE CrossStudio_Project_File>
 <solution Name="cowbhave.scan_response.c" target="8" version="2">
-  <project Name="ruuvi.firmware.c">
+  <project Name="cowbhave.scan_response.c">
     <configuration
       Name="Common"
       arm_architecture="v7EM"
